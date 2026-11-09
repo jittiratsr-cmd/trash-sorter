@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>แยกขยะ ลากให้ถูกถัง</title>
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#dff3ee;--surface:#ffffff;--ink:#12332e;--soft:#4d6b66;--line:#b9d9d1;--veil:rgba(223,243,238,.93);
+  --organic:#2e9e5b;--recycle:#f2b705;--general:#2f6fd6;--hazard:#d64545;--heart:#d64545;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0f2420;--surface:#183530;--ink:#e6f5f1;--soft:#9dbdb6;--line:#2a4a44;--veil:rgba(15,36,32,.92);color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#0f2420;--surface:#183530;--ink:#e6f5f1;--soft:#9dbdb6;--line:#2a4a44;--veil:rgba(15,36,32,.92);color-scheme:dark}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:"Mitr","Noto Sans Thai","Leelawadee UI",Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
+#app{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;position:relative}
+header{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:2px solid var(--line)}
+.score{font-size:15px;color:var(--soft)}
+.score b{font-size:26px;color:var(--ink);font-weight:600;margin-left:4px}
+#combo{font-size:15px;font-weight:500;color:var(--organic);min-height:1.2em}
+#lives{font-size:22px;color:var(--heart);letter-spacing:2px}
+#field{flex:1;position:relative;z-index:2;min-height:0}
+.item{position:absolute;left:0;top:0;width:78px;padding:6px 2px 5px;text-align:center;background:var(--surface);border-radius:14px;box-shadow:0 2px 0 var(--line);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;will-change:transform}
+.item span{display:block;font-size:40px;line-height:1.15}
+.item small{display:block;font-size:11px;line-height:1.2;color:var(--soft)}
+.item.held{box-shadow:0 10px 18px rgba(0,0,0,.28);z-index:6;cursor:grabbing}
+#toast{position:absolute;left:12px;right:12px;top:10px;z-index:4;text-align:center;font-size:14px;padding:8px 12px;border-radius:10px;background:var(--ink);color:var(--bg);opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .2s;pointer-events:none}
+#toast.show{opacity:1;transform:none}
+.float{position:absolute;z-index:5;font-weight:600;font-size:22px;color:var(--organic);pointer-events:none;animation:up .8s ease-out forwards}
+@keyframes up{to{transform:translateY(-60px);opacity:0}}
+#bins{position:relative;z-index:1;display:flex;gap:8px;padding:14px 10px 12px}
+.bin{flex:1;position:relative;background:var(--c);color:#fff;border-radius:6px 6px 16px 16px;padding:12px 2px 9px;text-align:center;line-height:1.25;font-size:clamp(13px,3.6vw,16px);font-weight:500}
+.bin small{display:block;font-size:clamp(10px,2.8vw,12px);font-weight:400;opacity:.92}
+.bin.yellow{color:#3a2c00}
+.bin::before{content:"";position:absolute;left:-3px;right:-3px;top:-8px;height:8px;border-radius:4px;background:var(--c);filter:brightness(.85);transform-origin:left bottom;transition:transform .18s}
+.bin.good::before{transform:rotate(-16deg)}
+.bin.bad{animation:nope .3s}
+@keyframes nope{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+#app.shake{animation:shake .25s}
+@keyframes shake{20%{transform:translateX(-6px)}60%{transform:translateX(6px)}}
+.overlay{position:absolute;inset:0;z-index:8;display:grid;place-items:center;padding:20px;background:var(--veil)}
+.overlay[hidden]{display:none}
+.card{width:100%;max-width:380px;background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:24px 22px;text-align:center}
+.card h1{margin:0 0 6px;font-size:34px;font-weight:600;line-height:1.15}
+.card p{margin:0 0 14px;color:var(--soft);font-size:15px;line-height:1.5}
+.card ul{list-style:none;margin:0 0 14px;padding:0;text-align:left;font-size:14px}
+.card li{padding:5px 0;border-top:1px solid var(--line)}
+.big{font-size:44px;font-weight:600;line-height:1.1}
+button.go{font:inherit;font-size:18px;font-weight:500;color:#fff;background:var(--organic);border:0;border-radius:12px;padding:12px 28px;cursor:pointer}
+button.go:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="score">คะแนน<b id="score">0</b></div>
+    <div id="combo"></div>
+    <div id="lives" aria-label="ชีวิตที่เหลือ"></div>
+  </header>
+  <main id="field"><div id="toast" role="status" aria-live="polite"></div></main>
+  <nav id="bins" aria-label="ถังขยะ"></nav>
+  <div class="overlay" id="ov"></div>
+</div>
+<script>
+const BINS={
+  organic:{name:'ถังเขียว',sub:'ขยะเปียก',cls:'',c:'var(--organic)'},
+  recycle:{name:'ถังเหลือง',sub:'รีไซเคิล',cls:'yellow',c:'var(--recycle)'},
+  general:{name:'ถังน้ำเงิน',sub:'ขยะทั่วไป',cls:'',c:'var(--general)'},
+  hazard:{name:'ถังแดง',sub:'ขยะอันตราย',cls:'',c:'var(--hazard)'}
+};
+const ITEMS=[
+  ['🍌','เปลือกกล้วย','organic'],['🍎','แกนแอปเปิล','organic'],['🥬','เศษผัก','organic'],['🍗','กระดูกไก่','organic'],['🥚','เปลือกไข่','organic'],
+  ['🍾','ขวดแก้ว','recycle'],['🥫','กระป๋อง','recycle'],['📰','หนังสือพิมพ์','recycle'],['🧴','ขวดพลาสติก','recycle'],['📦','กล่องกระดาษ','recycle'],
+  ['🥡','กล่องโฟม','general'],['🧻','ทิชชู่ใช้แล้ว','general'],['🪥','แปรงสีฟัน','general'],['🍿','ซองขนม','general'],['🛍️','ถุงพลาสติก','general'],
+  ['🔋','ถ่านไฟฉาย','hazard'],['💡','หลอดไฟ','hazard'],['💊','ยาหมดอายุ','hazard'],['🧪','สารเคมี','hazard'],['📱','มือถือเสีย','hazard']
+];
+const $=id=>document.getElementById(id);
+const app=$('app'),field=$('field'),binsEl=$('bins'),ov=$('ov');
+let score,combo,lives,items,mistakes,running,last,spawnT,raf,toastT;
+
+for(const k in BINS){
+  const b=document.createElement('div');
+  b.className='bin '+BINS[k].cls;b.dataset.type=k;b.style.setProperty('--c',BINS[k].c);
+  b.innerHTML=BINS[k].name+'<small>'+BINS[k].sub+'</small>';
+  binsEl.appendChild(b);
+}
+function getBest(){try{return +localStorage.getItem('sortBest')||0}catch(e){return 0}}
+function setBest(v){try{localStorage.setItem('sortBest',String(v))}catch(e){}}
+
+function hud(){
+  $('score').textContent=score;
+  $('combo').textContent=combo>=2?'คอมโบ ×'+combo:'';
+  $('lives').textContent='♥'.repeat(Math.max(lives,0))+'♡'.repeat(Math.max(3-lives,0));
+}
+function toast(m){
+  const t=$('toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1900);
+}
+function place(it){it.el.style.transform='translate('+it.x+'px,'+it.y+'px) rotate('+(it.drag?0:it.r)+'deg)'}
+function kill(it){it.dead=true;it.el.remove();items=items.filter(i=>i!==it)}
+function flash(el,c){el.classList.remove('good','bad');void el.offsetWidth;el.classList.add(c);setTimeout(()=>el.classList.remove(c),350)}
+function pop(text,binEl){
+  const f=document.createElement('div');f.className='float';f.textContent=text;
+  const fr=field.getBoundingClientRect(),br=binEl.getBoundingClientRect();
+  f.style.left=(br.left-fr.left+br.width/2-20)+'px';f.style.top=(field.clientHeight-30)+'px';
+  field.appendChild(f);setTimeout(()=>f.remove(),800);
+}
+function fail(it,msg){
+  combo=0;lives--;
+  mistakes.push(it.emoji+' '+it.name+' → '+BINS[it.type].name);
+  toast(msg);
+  app.classList.remove('shake');void app.offsetWidth;app.classList.add('shake');
+  hud();
+  if(lives<=0)end();
+}
+function resolve(it,binEl){
+  const ok=binEl.dataset.type===it.type;
+  kill(it);
+  if(ok){
+    combo++;const add=10*(1+Math.floor(combo/5));score+=add;
+    flash(binEl,'good');pop('+'+add,binEl);hud();
+  }else{
+    flash(binEl,'bad');
+    fail(it,it.name+' ต้องทิ้ง'+BINS[it.type].name+' ('+BINS[it.type].sub+')');
+  }
+}
+function spawn(d){
+  const [emoji,name,type]=ITEMS[Math.floor(Math.random()*ITEMS.length)];
+  const el=document.createElement('div');
+  el.className='item';el.innerHTML='<span>'+emoji+'</span><small>'+name+'</small>';
+  field.appendChild(el);
+  const W=field.clientWidth,H=field.clientHeight;
+  const it={el,emoji,name,type,x:8+Math.random()*(W-94),y:-90,v:H*(0.14+0.26*d)*(0.85+Math.random()*0.3),r:Math.random()*20-10,drag:false,dx:0,dy:0};
+  el.addEventListener('pointerdown',e=>down(e,it));
+  items.push(it);place(it);
+}
+function down(e,it){
+  if(!running||it.dead)return;
+  e.preventDefault();it.drag=true;
+  const el=it.el;el.setPointerCapture(e.pointerId);
+  const r=el.getBoundingClientRect();it.dx=e.clientX-r.left;it.dy=e.clientY-r.top;
+  el.classList.add('held');
+  el.onpointermove=ev=>{
+    const f=field.getBoundingClientRect();
+    it.x=ev.clientX-f.left-it.dx;it.y=ev.clientY-f.top-it.dy;place(it);
+  };
+  el.onpointerup=el.onpointercancel=ev=>{
+    el.onpointermove=el.onpointerup=el.onpointercancel=null;
+    el.classList.remove('held');it.drag=false;
+    const hit=document.elementsFromPoint(ev.clientX,ev.clientY).find(n=>n.classList&&n.classList.contains('bin'));
+    if(hit&&running)resolve(it,hit);else place(it);
+  };
+}
+function loop(t){
+  const dt=Math.min((t-last)/1000,0.05);last=t;
+  const d=Math.min(score/400,1);
+  spawnT+=dt;
+  if(spawnT>=1.9-1.3*d){spawnT=0;spawn(d)}
+  const H=field.clientHeight;
+  for(const it of items.slice()){
+    if(it.drag||it.dead)continue;
+    it.y+=it.v*dt;place(it);
+    if(it.y>H-50){
+      kill(it);
+      fail(it,it.name+' ตกพื้น! ควรทิ้ง'+BINS[it.type].name);
+      if(!running)return;
+    }
+  }
+  raf=requestAnimationFrame(loop);
+}
+function start(){
+  score=0;combo=0;lives=3;items=[];mistakes=[];spawnT=1.5;running=true;
+  field.querySelectorAll('.item,.float').forEach(n=>n.remove());
+  hud();ov.hidden=true;
+  last=performance.now();raf=requestAnimationFrame(loop);
+}
+function end(){
+  running=false;cancelAnimationFrame(raf);
+  items.slice().forEach(kill);
+  let best=getBest();const isNew=score>best;
+  if(isNew){best=score;setBest(best)}
+  const uniq=[...new Set(mistakes)].slice(0,4);
+  ov.innerHTML='<div class="card"><p>จบเกม</p><div class="big">'+score+'</div><p>'+(isNew&&score>0?'สถิติใหม่!':'สูงสุด '+best)+'</p>'+
+    (uniq.length?'<p style="margin-bottom:6px">ที่ควรจำ</p><ul>'+uniq.map(m=>'<li>'+m+'</li>').join('')+'</ul>':'')+
+    '<button class="go" id="again">เล่นอีกครั้ง</button></div>';
+  ov.hidden=false;$('again').onclick=start;$('again').focus();
+}
+function intro(){
+  ov.innerHTML='<div class="card"><h1>แยกขยะ</h1><p>ลากขยะที่ตกลงมาไปใส่ถังให้ถูกสี ทิ้งถูกติดกันได้คอมโบ คะแนนคูณเพิ่ม ทิ้งผิดหรือปล่อยตกพื้นเสีย 1 ชีวิต</p>'+
+    '<button class="go" id="play">เริ่มเล่น</button></div>';
+  $('play').onclick=start;$('play').focus();
+}
+score=0;combo=0;lives=3;items=[];mistakes=[];hud();intro();
+</script>
+</body>
+</html>
